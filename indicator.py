@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import signal
 import gi
 gi.require_version('Gtk', '3.0')
@@ -122,7 +124,7 @@ class TrelloIndicator():
         pop_menu.connect('activate', self.update_content)
         menu.append(pop_menu)
 
-        show = Gtk.MenuItem('Show')
+        show = Gtk.MenuItem('Show in the app')
         show.connect('activate', self.spawn)
         menu.append(show)
 
