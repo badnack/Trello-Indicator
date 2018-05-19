@@ -1,23 +1,23 @@
 import signal
 import gi
+gi.require_version('Gtk', '3.0')
+gi.require_version('AppIndicator3', '0.1')
+
 from gi.repository import Gtk, AppIndicator3
 import os
 import subprocess as sp
 import thread
+import psutil
 import sys
 from multiprocessing import Pipe
 import signal
-import psutil
-import trello
 from trello import TrelloClient
 import json
 import requests
 
-gi.require_version('Gtk', '3.0')
-gi.require_version('AppIndicator3', '0.1')
 
 TRELLO = "/Trello"
-ICON = "/resources/app/static/Icon.png"
+ICON = "trello.png"
 API_KEY = 'b88df8721f0f659c17ec07065ad203e3'
 API_TOKEN = ''
 
@@ -27,7 +27,6 @@ class TrelloIndicator():
         # paths
         abs_path = os.path.expanduser(app_path)
         self.trello_bin_path = abs_path + TRELLO
-        self.trello_icon_path = abs_path + ICON
 
         # favorite
         self.fav_boards = boards
@@ -38,9 +37,7 @@ class TrelloIndicator():
         self.child_proc = None
 
         # indicator
-        self.indicator = AppIndicator3.Indicator.new(
-            self.trello_bin_path, self.trello_icon_path,
-            AppIndicator3.IndicatorCategory.OTHER)
+        self.indicator = AppIndicator3.Indicator.new("TrelloAppIndicator", ICON, AppIndicator3.IndicatorCategory.OTHER)
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.create_menu())
         Gtk.main()
