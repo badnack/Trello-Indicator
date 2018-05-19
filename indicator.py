@@ -1,22 +1,24 @@
 import signal
 import gi
-gi.require_version('Gtk', '3.0')
-gi.require_version('AppIndicator3', '0.1')
 from gi.repository import Gtk, AppIndicator3
 import os
 import subprocess as sp
 import thread
 import sys
 from multiprocessing import Pipe
-import signal, psutil
+import signal
+import psutil
 import trello
 from trello import TrelloClient
 import json
 import requests
 
+gi.require_version('Gtk', '3.0')
+gi.require_version('AppIndicator3', '0.1')
+
 TRELLO = "/Trello"
 ICON = "/resources/app/static/Icon.png"
-API_KEY = ''
+API_KEY = 'b88df8721f0f659c17ec07065ad203e3'
 API_TOKEN = ''
 
 
@@ -36,13 +38,12 @@ class TrelloIndicator():
         self.child_proc = None
 
         # indicator
-        indicator = AppIndicator3.Indicator.new(
+        self.indicator = AppIndicator3.Indicator.new(
             self.trello_bin_path, self.trello_icon_path,
             AppIndicator3.IndicatorCategory.OTHER)
-        indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)       
-        indicator.set_menu(self.create_menu())
+        self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+        self.indicator.set_menu(self.create_menu())
         Gtk.main()
-
 
     def spawn(self, *args, **kwargs):
         if not self.parent_conn.poll():
@@ -77,15 +78,22 @@ class TrelloIndicator():
         pass
 
     def add_boards(self, menu):
-        # boards
-        # TODO check connection
-        #show = Gtk.MenuItem('Can\'t retrieve boards right now')
-        #show.connect('activate', self.blank_fn)
-        #show.set_sensitive(False)
-        #menu.append(show)
+        try:
+            remote_boards = self.trello_client.list_boards()
+        except requests.exceptions.ConnectionError as e:
+            nope = Gtk.MenuItem('Can\'t retrieve boards right now')
+            nope.connect('activate', self.blank_fn)
+            nope.set_sensitive(False)
+            menu.append(nope)
+            return
 
-        remote_boards = self.trello_client.list_boards()
+        first = True
         for board_name, list_name in self.fav_boards:
+            if not first:
+                # separator
+                menu_sep = Gtk.SeparatorMenuItem()
+                menu.append(menu_sep)
+
             entry = Gtk.MenuItem(list_name)
             entry.connect('activate', self.blank_fn)
             entry.set_sensitive(False)
@@ -94,18 +102,18 @@ class TrelloIndicator():
             remote_board = [b for b in remote_boards if b.name == board_name][0]
             my_list = [l for l in remote_board.list_lists() if l.name == list_name][0]
             cards = my_list.list_cards()
-            print cards
+
             for card in cards:
                 entry = Gtk.MenuItem(card.name)
                 entry.connect('activate', self.blank_fn)
                 menu.append(entry)
-            # separator
-            menu_sep = Gtk.SeparatorMenuItem()
-            menu.append(menu_sep)
 
-    def populate_menu(self, *args, **kwargs):
+            first = False
+
+    def create_menu(self):
         menu = Gtk.Menu()
 
+        # boards
         self.add_boards(menu)
 
         # separator
@@ -114,7 +122,7 @@ class TrelloIndicator():
 
         # show/update buttons
         pop_menu = Gtk.MenuItem('Update')
-        pop_menu.connect('activate', self.populate_menu)
+        pop_menu.connect('activate', self.update_content)
         menu.append(pop_menu)
 
         show = Gtk.MenuItem('Show')
@@ -133,8 +141,8 @@ class TrelloIndicator():
         menu.show_all()
         return menu
 
-    def create_menu(self):
-        return self.populate_menu()
+    def update_content(self, *args, **kwargs):
+        self.indicator.set_menu(self.create_menu())
 
     def stop(self, source):
         Gtk.main_quit()
@@ -150,4 +158,5 @@ if __name__ == "__main__":
 
     with open(sys.argv[1], 'r') as fp:
         config = json.load(fp)
-        TrelloIndicator(config['path'], config['boards']).create_menu()
+        API_TOKEN = config['token']
+        TrelloIndicator(config['path'], config['boards'])

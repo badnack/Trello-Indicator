@@ -1,0 +1,8 @@
+{
+"path": "~/path/to/trello/linux/client",
+"token": "copy and paste the token from: https://trello.com/1/authorize?expiration=never&name=TrelloIndicator&scope=read&response_type=token&key=b88df8721f0f659c17ec07065ad203e3",
+"boards": [
+        ["My stuff", "TODO"],
+        ["My stuff, "TODO2"]
+]
+}
