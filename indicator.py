@@ -23,7 +23,6 @@ ICON = "trello.png"
 API_KEY = 'b88df8721f0f659c17ec07065ad203e3'
 API_TOKEN = ''
 
-
 class TrelloIndicator():
     def __init__(self, app_path, boards):
         # paths
@@ -41,7 +40,7 @@ class TrelloIndicator():
         # indicator
         self.indicator = AppIndicator3.Indicator.new("TrelloAppIndicator", ICON, AppIndicator3.IndicatorCategory.OTHER)
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
-        self.indicator.set_menu(self.create_menu())
+        self.update_content()
         Gtk.main()
 
     def spawn(self, *args, **kwargs):
@@ -62,11 +61,10 @@ class TrelloIndicator():
 
                 assert len(children) == 1, "Too many children.. this was not expected"
                 self.child_proc = children[0]
-
         else:
             # process is opened already, give it the focus
             p = sp.Popen(["wmctrl -lp"], stderr=sp.PIPE, stdout=sp.PIPE, shell=True)
-            w_list, _  = p.communicate()
+            w_list, _ = p.communicate()
             line = [l for l in w_list.split('\n') if str(self.child_proc.pid) in l]
             assert len(line) == 1, "Too many processes have been spawned.. something is wrong"
             wmctrl_fields = [x for x in line[0].split(' ') if x]
@@ -77,6 +75,7 @@ class TrelloIndicator():
         pass
 
     def add_boards(self, menu):
+        remote_lists = {}
         try:
             remote_boards = self.trello_client.list_boards()
         except requests.exceptions.ConnectionError as e:
@@ -88,26 +87,37 @@ class TrelloIndicator():
 
         first = True
         for board_name, list_name in self.fav_boards:
-            if not first:
-                # separator
-                menu_sep = Gtk.SeparatorMenuItem()
-                menu.append(menu_sep)
+            try:
+                if not first:
+                    # separator
+                    menu_sep = Gtk.SeparatorMenuItem()
+                    menu.append(menu_sep)
 
-            entry = Gtk.MenuItem(list_name)
-            entry.connect('activate', self.blank_fn)
-            entry.set_sensitive(False)
-            menu.append(entry)
-
-            remote_board = [b for b in remote_boards if b.name == board_name][0]
-            my_list = [l for l in remote_board.list_lists() if l.name == list_name][0]
-            cards = my_list.list_cards()
-
-            for card in cards:
-                entry = Gtk.MenuItem(card.name)
+                # list name
+                entry = Gtk.MenuItem(list_name)
                 entry.connect('activate', self.blank_fn)
+                entry.set_sensitive(False)
                 menu.append(entry)
 
-            first = False
+                # find the right remote board
+                remote_board = [b for b in remote_boards if b.name == board_name][0]
+
+                # cache!
+                if remote_board.name not in remote_lists:
+                    remote_lists[remote_board.name] = remote_board.list_lists()
+
+                # get the list
+                remote_list = remote_lists[remote_board.name]
+                my_list = [l for l in remote_list if l.name == list_name][0]
+                cards = my_list.list_cards()
+
+                for card in cards:
+                    entry = Gtk.MenuItem(card.name)
+                    entry.connect('activate', self.blank_fn)
+                    menu.append(entry)
+                first = False
+            except Exception as e:
+                print str(e)
 
     def create_menu(self):
         menu = Gtk.Menu()
@@ -144,8 +154,9 @@ class TrelloIndicator():
         self.indicator.set_menu(self.create_menu())
 
     def stop(self, source):
+        self.child_proc.send_signal(signal.SIGTERM)
+
         Gtk.main_quit()
-        self.child.send_signal(signal.SIGTERM)
         sys.exit(0)
 
 
