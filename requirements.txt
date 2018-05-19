@@ -1,0 +1,7 @@
+gi>=3.20.0
+subprocess
+psutil
+multiprocessing
+py-trello
+json
+requests
