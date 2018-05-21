@@ -28,6 +28,7 @@ class TrelloIndicator():
         # paths
         abs_path = os.path.expanduser(app_path)
         self.trello_bin_path = abs_path + TRELLO
+        icon_abs_path = os.path.dirname(os.path.abspath(__file__)) + '/' + ICON
 
         # favorite
         self.fav_boards = boards
@@ -130,11 +131,11 @@ class TrelloIndicator():
         menu.append(menu_sep)
 
         # show/update buttons
-        pop_menu = Gtk.MenuItem('Update')
+        pop_menu = Gtk.MenuItem('Refresh')
         pop_menu.connect('activate', self.update_content)
         menu.append(pop_menu)
 
-        show = Gtk.MenuItem('Show in the app')
+        show = Gtk.MenuItem('Show in app')
         show.connect('activate', self.spawn)
         menu.append(show)
 
@@ -154,7 +155,8 @@ class TrelloIndicator():
         self.indicator.set_menu(self.create_menu())
 
     def stop(self, source):
-        self.child_proc.send_signal(signal.SIGTERM)
+        if self.child_proc is not None:
+            self.child_proc.send_signal(signal.SIGTERM)
 
         Gtk.main_quit()
         sys.exit(0)
